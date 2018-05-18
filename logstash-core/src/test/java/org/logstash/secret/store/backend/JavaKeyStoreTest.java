@@ -33,7 +33,6 @@ import java.util.stream.IntStream;
 import static java.nio.file.attribute.PosixFilePermission.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Fail.fail;
-import static org.hamcrest.CoreMatchers.isA;
 import static org.logstash.secret.store.SecretStoreFactory.LOGSTASH_MARKER;
 
 /**

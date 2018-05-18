@@ -32,26 +32,12 @@ module ::LogStash::Util::SubstitutionVariables
   def replace_placeholders(value)
     return value unless value.is_a?(String)
 
-    value.gsub(SUBSTITUTION_PLACEHOLDER_REGEX) do |placeholder|
-      # Note: Ruby docs claim[1] Regexp.last_match is thread-local and scoped to
-      # the call, so this should be thread-safe.
-      #
-      # [1] http://ruby-doc.org/core-2.1.1/Regexp.html#method-c-last_match
-      name = Regexp.last_match(:name)
-      default = Regexp.last_match(:default)
-      logger.debug("Replacing `#{placeholder}` with actual value")
-
-      #check the secret store if it exists
-      secret_store = SecretStoreExt.getIfExists(LogStash::SETTINGS.get_setting("keystore.file").value, LogStash::SETTINGS.get_setting("keystore.classname").value)
-      replacement = secret_store.nil? ? nil : secret_store.retrieveSecret(SecretStoreExt.getStoreId(name))
-      #check the environment
-      replacement = ENV.fetch(name, default) if replacement.nil?
-      if replacement.nil?
-        raise LogStash::ConfigurationError, "Cannot evaluate `#{placeholder}`. Replacement variable `#{name}` is not defined in a Logstash secret store " +
-            "or as an Environment entry and there is no default value given."
-      end
-      replacement.to_s
-    end
+    secret_store = SecretStoreExt.getIfExists(LogStash::SETTINGS.get_setting("keystore.file").value, LogStash::SETTINGS.get_setting("keystore.classname").value)
+    org.logstash.common.SubstitutionVariables.replacePlaceholders(
+        value, ENV, secret_store
+    );
+  rescue org.logstash.common.SubstitutionVariables::MissingSubstitutionVariableError => e
+    raise ::LogStash::ConfigurationError, e.getMessage
   end # def replace_placeholders
 
 end

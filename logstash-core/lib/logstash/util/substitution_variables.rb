@@ -32,17 +32,12 @@ module ::LogStash::Util::SubstitutionVariables
   def replace_placeholders(value)
     return value unless value.is_a?(String)
 
-    secret_store =nil
-    begin
-      secret_store = SecretStoreExt.getIfExists(LogStash::SETTINGS.get_setting("keystore.file").value, LogStash::SETTINGS.get_setting("keystore.classname").value)
-    rescue Java::OrgLogstashSecretStore::SecretStoreException::AccessException => e
-      logger.error("Could not load secret store", :message => e.message, :class => e.class.name)
-    end
+    secret_store_config = SecretStoreExt.getConfig(LogStash::SETTINGS.get_setting("keystore.file").value, LogStash::SETTINGS.get_setting("keystore.classname").value)
+
     org.logstash.common.SubstitutionVariables.replacePlaceholders(
-        value, ENV, secret_store
+        value, ENV, secret_store_config
     );
   rescue org.logstash.common.SubstitutionVariables::MissingSubstitutionVariableError => e
     raise ::LogStash::ConfigurationError, e.getMessage
   end # def replace_placeholders
-
 end

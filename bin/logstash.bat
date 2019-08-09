@@ -38,19 +38,24 @@ if "%LS_JVM_OPTIONS_CONFIG%" == "" (
   set LS_JVM_OPTIONS_CONFIG="%LS_HOME%\config\jvm.options"
 )
 
-rem extract the options from the JVM options file %LS_JVM_OPTIONS_CONFIG%
-rem such options are the lines beginning with '-', thus "findstr /b"
-if exist %LS_JVM_OPTIONS_CONFIG% (
-  for /F "usebackq delims=" %%a in (`findstr /b \- %LS_JVM_OPTIONS_CONFIG%`) do set options=!options! %%a
-  set "LS_JAVA_OPTS=!options! %LS_JAVA_OPTS%"
-) else (
-  echo "warning: no jvm.options file found"
-)
-set JAVA_OPTS=%LS_JAVA_OPTS%
+rem Use wildcard for jars, instead of concatenating each jar to classpath to avoid reaching max size
+set CLASSPATH=%LS_HOME%\logstash-core\lib\jars\*
 
-for %%i in ("%LS_HOME%\logstash-core\lib\jars\*.jar") do (
-	call :concat "%%i"
+if not exist %LS_JVM_OPTIONS_CONFIG% (
+echo No jvm.options found at %LS_JVM_OPTIONS_CONFIG%
+exit /b 1
 )
+
+@setlocal
+for /F "usebackq delims=" %%a in (`"%JAVA% -cp "!CLASSPATH!" "org.logstash.util.JvmOptionsConfigParser" "!LS_JVM_OPTIONS_CONFIG!" || echo jvm_options_parser_failed"`) do set JVM_OPTIONS=%%a
+@endlocal & set "MAYBE_JVM_OPTIONS_PARSER_FAILED=%JVM_OPTIONS%" & set "LS_JAVA_OPTS=%JVM_OPTIONS% %LS_JAVA_OPTS%"
+
+if "!MAYBE_JVM_OPTIONS_PARSER_FAILED!" == "jvm_options_parser_failed" (
+echo Logstash jvm options parser failed
+exit /b 1
+)
+
+set JAVA_OPTS=%LS_JAVA_OPTS%
 
 %JAVA% %JAVA_OPTS% -cp "%CLASSPATH%" org.logstash.Logstash %*
 

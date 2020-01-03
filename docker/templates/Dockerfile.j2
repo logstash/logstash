@@ -24,7 +24,7 @@ FROM {{ base_image }}
 
 # Install Java and the "which" command, which is needed by Logstash's shell
 # scripts.
-RUN {{ package_manager }} update -y && {{ package_manager }} install -y java-11-openjdk-devel which && \
+RUN {{ package_manager }} update -y && {{ package_manager }} install -y java-11 which && \
     {{ package_manager }} clean all
 
 # Provide a non-root user to run the process.

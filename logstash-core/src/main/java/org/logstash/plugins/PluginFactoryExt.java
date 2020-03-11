@@ -388,11 +388,7 @@ public final class PluginFactoryExt {
     public static final class ExecutionContext extends RubyBasicObject {
 
         private static final long serialVersionUID = 1L;
-
-        private IRubyObject agent;
-
         private IRubyObject pipeline;
-
         private IRubyObject dlqWriter;
 
         public ExecutionContext(final Ruby runtime, final RubyClass metaClass) {
@@ -400,9 +396,11 @@ public final class PluginFactoryExt {
         }
 
         @JRubyMethod
-        public PluginFactoryExt.ExecutionContext initialize(final ThreadContext context,
-            final IRubyObject agent, final IRubyObject pipeline, final IRubyObject dlqWriter) {
-            this.agent = agent;
+        public PluginFactoryExt.ExecutionContext initialize(
+            final ThreadContext context,
+            final IRubyObject pipeline,
+            final IRubyObject dlqWriter
+        ) {
             this.pipeline = pipeline;
             this.dlqWriter = dlqWriter;
             return this;
@@ -414,7 +412,7 @@ public final class PluginFactoryExt {
             return new ExecutionContextExt(
                 context.runtime, RubyUtil.EXECUTION_CONTEXT_CLASS
             ).initialize(
-                context, new IRubyObject[]{pipeline, agent, id, classConfigName, dlqWriter}
+                context, new IRubyObject[]{pipeline, id, classConfigName, dlqWriter}
             );
         }
 

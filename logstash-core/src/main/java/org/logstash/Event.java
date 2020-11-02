@@ -17,7 +17,6 @@
  * under the License.
  */
 
-
 package org.logstash;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -30,11 +29,14 @@ import org.jruby.RubySymbol;
 import org.logstash.ackedqueue.Queueable;
 import org.logstash.ext.JrubyTimestampExtLibrary;
 
+import co.elastic.logstash.api.AcknowledgeToken;
+
 import java.io.IOException;
 import java.io.Serializable;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -48,19 +50,22 @@ public final class Event implements Cloneable, Queueable, co.elastic.logstash.ap
     private boolean cancelled;
     private ConvertedMap data;
     private ConvertedMap metadata;
+    private AcknowledgeToken acknowledgeToken;
 
     public static final String METADATA = "@metadata";
     public static final String METADATA_BRACKETS = "[" + METADATA + "]";
     public static final String TIMESTAMP = "@timestamp";
+    public static final String ACKNOWLEDGE_TOKEN = "@acknowledge_token";
     public static final String TIMESTAMP_FAILURE_TAG = "_timestampparsefailure";
     public static final String TIMESTAMP_FAILURE_FIELD = "_@timestamp";
     public static final String VERSION = "@version";
     public static final String VERSION_ONE = "1";
     private static final String DATA_MAP_KEY = "DATA";
     private static final String META_MAP_KEY = "META";
+    private static final String ACK_MAP_KEY = "ACK";
 
     private static final FieldReference TAGS_FIELD = FieldReference.from("tags");
-    
+
     private static final Logger logger = LogManager.getLogger(Event.class);
 
     public Event()
@@ -69,7 +74,13 @@ public final class Event implements Cloneable, Queueable, co.elastic.logstash.ap
         this.data = new ConvertedMap(10);
         this.data.putInterned(VERSION, VERSION_ONE);
         this.cancelled = false;
+        this.acknowledgeToken = null;
         setTimestamp(Timestamp.now());
+    }
+
+    public Event(AcknowledgeToken acknowledgeToken){
+        this();
+        this.acknowledgeToken = acknowledgeToken;
     }
 
     /**
@@ -100,6 +111,12 @@ public final class Event implements Cloneable, Queueable, co.elastic.logstash.ap
         } else {
             this.metadata = new ConvertedMap(10);
         }
+        if (this.data.containsKey(ACKNOWLEDGE_TOKEN)) {
+            Object token = this.data.remove(ACKNOWLEDGE_TOKEN);
+            if (token instanceof AcknowledgeToken){
+                this.acknowledgeToken = (AcknowledgeToken) token;
+            }
+        }
         this.cancelled = false;
 
         Object providedTimestamp = data.get(TIMESTAMP);
@@ -121,6 +138,11 @@ public final class Event implements Cloneable, Queueable, co.elastic.logstash.ap
     @Override
     public ConvertedMap getMetadata() {
         return this.metadata;
+    }
+
+    @Override
+    public AcknowledgeToken getAcknowledgeToken(){
+        return this.acknowledgeToken;
     }
 
     @Override
@@ -154,7 +176,7 @@ public final class Event implements Cloneable, Queueable, co.elastic.logstash.ap
     }
 
     public Timestamp getTimestamp() {
-        final JrubyTimestampExtLibrary.RubyTimestamp timestamp = 
+        final JrubyTimestampExtLibrary.RubyTimestamp timestamp =
             (JrubyTimestampExtLibrary.RubyTimestamp) data.get(TIMESTAMP);
         return (timestamp != null)
                 ? timestamp.getTimestamp()
@@ -239,6 +261,14 @@ public final class Event implements Cloneable, Queueable, co.elastic.logstash.ap
         if (metaMap == null) {
             throw new IOException("The deserialized Map must contain the \"META\" key");
         }
+        final Map<String, Object> ackMap = representation.get(ACK_MAP_KEY);
+        if (ackMap != null) {
+            Object acknowledge_token = ackMap.get(ACKNOWLEDGE_TOKEN);
+            if (acknowledge_token != null){
+                dataMap.put(ACKNOWLEDGE_TOKEN, acknowledge_token);
+            }
+
+        }
         dataMap.put(METADATA, metaMap);
         return new Event(dataMap);
     }
@@ -264,7 +294,7 @@ public final class Event implements Cloneable, Queueable, co.elastic.logstash.ap
         if (o instanceof Map) {
             result = new Event[]{ new Event((Map<String, Object>)o) };
         } else if (o instanceof List) {
-            final Collection<Map<String, Object>> list = (Collection<Map<String, Object>>) o; 
+            final Collection<Map<String, Object>> list = (Collection<Map<String, Object>>) o;
             result = new Event[list.size()];
             int i = 0;
             for (final Map<String, Object> e : list) {
@@ -341,6 +371,7 @@ public final class Event implements Cloneable, Queueable, co.elastic.logstash.ap
         final ConvertedMap map =
             ConvertedMap.newFromMap(Cloner.<Map<String, Object>>deep(data));
         map.putInterned(METADATA, Cloner.<Map<String, Object>>deep(metadata));
+        map.putInterned(ACKNOWLEDGE_TOKEN, this.acknowledgeToken);
         return new Event(map);
     }
 
@@ -462,6 +493,9 @@ public final class Event implements Cloneable, Queueable, co.elastic.logstash.ap
         final Map<String, Map<String, Object>> map = new HashMap<>(2, 1.0F);
         map.put(DATA_MAP_KEY, this.data);
         map.put(META_MAP_KEY, this.metadata);
+        if(this.acknowledgeToken != null){
+            map.put(ACK_MAP_KEY, Collections.singletonMap(ACKNOWLEDGE_TOKEN, this.acknowledgeToken));
+        }
         return CBOR_MAPPER.writeValueAsBytes(map);
     }
 

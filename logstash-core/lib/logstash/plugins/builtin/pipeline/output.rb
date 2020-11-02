@@ -26,14 +26,16 @@ module ::LogStash; module Plugins; module Builtin; module Pipeline; class Output
 
   config :ensure_delivery, :validate => :boolean, :default => true
 
-  attr_reader :pipeline_bus
+  attr_reader :pipeline_bus, :acknowledge_bus
 
   def register
     @pipeline_bus = execution_context.agent.pipeline_bus
+    @acknowledge_bus = execution_context.agent.acknowledge_bus
     pipeline_bus.registerSender(self, @send_to)
   end
 
   def multi_receive(events)
+    acknowledge_bus.notifyClonedEvents(events)
     pipeline_bus.sendEvents(self, events, ensure_delivery)
   end
 

@@ -47,6 +47,8 @@ module LogStash; class JavaPipeline < JavaBasePipeline
     super pipeline_config, namespaced_metric, @logger, agent
     open_queue
 
+    @acknowledge_bus = agent.nil? ? nil : agent.acknowledge_bus
+
     @worker_threads = []
 
     @drain_queue =  settings.get_value("queue.drain") || settings.get("queue.type") == MEMORY
@@ -565,6 +567,7 @@ module LogStash; class JavaPipeline < JavaBasePipeline
       org.logstash.execution.WorkerLoop.new(
         lir_execution,
         filter_queue_client,
+        @acknowledge_bus,
         @events_filtered,
         @events_consumed,
         @flushRequested,

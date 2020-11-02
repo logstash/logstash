@@ -44,10 +44,13 @@ import org.logstash.RubyUtil;
 import org.logstash.Rubyfier;
 import org.logstash.Valuefier;
 
+import co.elastic.logstash.api.Acknowledgable;
+import co.elastic.logstash.api.AcknowledgeToken;
+
 public final class JrubyEventExtLibrary {
 
     @JRubyClass(name = "Event")
-    public static final class RubyEvent extends RubyObject {
+    public static final class RubyEvent extends RubyObject implements Acknowledgable {
 
         private static final long serialVersionUID = 1L;
 
@@ -370,6 +373,11 @@ public final class JrubyEventExtLibrary {
         private static int nextHash() {
             final long sequence = SEQUENCE_GENERATOR.incrementAndGet();
             return (int) (sequence ^ sequence >>> 32) + 31;
+        }
+
+        @Override
+        public AcknowledgeToken getAcknowledgeToken() {
+            return (this.event == null) ? null : this.event.getAcknowledgeToken();
         }
     }
 }

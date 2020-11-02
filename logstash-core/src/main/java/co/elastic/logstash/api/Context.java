@@ -62,4 +62,14 @@ public interface Context {
      */
     EventFactory getEventFactory();
 
+    /**
+     * Provides an {@link AcknowledgeBus}, if configured, to input plugins.
+     * If no bus configured or the plugin is not an input, {@code null} will be returned.
+     *
+     * @return {@link AcknowledgeBus} instance if available or {@code null} otherwise.
+     */
+    default AcknowledgeBus getAcknowledgeBus(){
+        return null;
+    }
+
 }

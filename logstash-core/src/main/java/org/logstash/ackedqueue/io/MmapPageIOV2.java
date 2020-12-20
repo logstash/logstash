@@ -108,7 +108,7 @@ public final class MmapPageIOV2 implements PageIO {
     }
 
     @Override
-    public SequencedList<byte[]> read(long seqNum, int limit) throws IOException {
+    public SequencedList read(long seqNum, int limit) throws IOException {
         assert seqNum >= this.minSeqNum :
             String.format("seqNum=%d < minSeqNum=%d", seqNum, this.minSeqNum);
         assert seqNum <= maxSeqNum() :
@@ -144,7 +144,7 @@ public final class MmapPageIOV2 implements PageIO {
             }
         }
 
-        return new SequencedList<>(elements, seqNums);
+        return new SequencedList(elements, seqNums);
     }
 
     // recover will overwrite/update/set this object minSeqNum, capacity and elementCount attributes

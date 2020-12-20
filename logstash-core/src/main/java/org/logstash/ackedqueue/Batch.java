@@ -35,10 +35,10 @@ public class Batch implements Closeable {
     private final Queue queue;
     private final AtomicBoolean closed;
 
-    public Batch(SequencedList<byte[]> serialized, Queue q) {
+    public Batch(SequencedList serialized, Queue q) {
         this(
-            serialized.getElements(),
-            serialized.getSeqNums().size() == 0 ? -1L : serialized.getSeqNums().get(0), q
+                serialized.getElements(),
+                serialized.getSeqNums().size() == 0 ? -1L : serialized.getSeqNums().get(0), q
         );
     }
 

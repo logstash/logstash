@@ -37,6 +37,7 @@ public class TimestampTest {
         Timestamp t1 = new Timestamp();
         Timestamp t2 = new Timestamp(t1.toString());
         assertEquals(t1.getTime(), t2.getTime());
+        assertEquals(t1.getInstant(), t2.getInstant());
     }
 
     @Test
@@ -46,6 +47,7 @@ public class TimestampTest {
     }
 
     // Timestamp should always be in a UTC representation
+    // TODO: remove spec, since `Instant` is UTC by default.
     @Test
     public void testUTC() throws Exception {
         Timestamp t;
@@ -82,4 +84,11 @@ public class TimestampTest {
         Assert.assertEquals(i.toEpochMilli(), millis);
     }
 
+    @Test
+    public void testNanoPrecision() {
+        final String input = "2021-04-02T00:28:17.987654321Z";
+        final Timestamp t1 = new Timestamp(input);
+
+        assertEquals(987654321, t1.getInstant().getNano());
+    }
 }

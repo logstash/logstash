@@ -36,6 +36,7 @@ public class TimestampTest {
     public void testCircularIso8601() throws Exception {
         Timestamp t1 = new Timestamp();
         Timestamp t2 = new Timestamp(t1.toString());
+        //noinspection deprecation
         assertEquals(t1.getTime(), t2.getTime());
         assertEquals(t1.getInstant(), t2.getInstant());
     }
@@ -53,16 +54,20 @@ public class TimestampTest {
         Timestamp t;
 
         t = new Timestamp();
+        //noinspection deprecation
         assertEquals(DateTimeZone.UTC, t.getTime().getZone());
 
         t = new Timestamp("2014-09-23T00:00:00-0800");
+        //noinspection deprecation
         assertEquals(DateTimeZone.UTC, t.getTime().getZone());
 
         t = new Timestamp("2014-09-23T08:00:00.000Z");
+        //noinspection deprecation
         assertEquals(DateTimeZone.UTC, t.getTime().getZone());
 
         long ms = DateTime.now(DateTimeZone.forID("EST")).getMillis();
         t = new Timestamp(ms);
+        //noinspection deprecation
         assertEquals(DateTimeZone.UTC, t.getTime().getZone());
     }
 

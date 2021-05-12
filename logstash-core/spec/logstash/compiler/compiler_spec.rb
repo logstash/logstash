@@ -79,6 +79,10 @@ describe LogStash::Compiler do
         settings.set_value("config.support_escapes", process_escape_sequences)
       end
 
+      after do
+        settings.get_setting("config.support_escapes").reset
+      end
+
       context "is enabled" do
         let(:process_escape_sequences) { true }
 

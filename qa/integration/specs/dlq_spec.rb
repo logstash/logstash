@@ -107,14 +107,14 @@ describe "Test Dead Letter Queue" do
               "pipeline.workers" => 1,
               "dead_letter_queue.enable" => true,
               "pipeline.batch.size" => 1,
-              "config.string" => "input { generator { message => '#{message}' codec => \"json\" count => 1000 } } filter { mutate { add_field => { \"geoip\" => \"somewhere\" } } } output { elasticsearch {} }"
+              "config.string" => "input { generator { message => '#{message}' codec => \"json\" count => 1000 } } filter { mutate { add_field => { \"geoip\" => \"somewhere\" } } } output { elasticsearch { data_stream => false } }"
           },
           {
               "pipeline.id" => "test2",
               "pipeline.workers" => 1,
               "dead_letter_queue.enable" => false,
               "pipeline.batch.size" => 1,
-              "config.string" => "input { dead_letter_queue { pipeline_id => 'test' path => \"#{dlq_dir}\" commit_offsets => true } } filter { mutate { remove_field => [\"geoip\"] add_field => {\"mutated\" => \"true\" } } } output { elasticsearch {} }"
+              "config.string" => "input { dead_letter_queue { pipeline_id => 'test' path => \"#{dlq_dir}\" commit_offsets => true } } filter { mutate { remove_field => [\"geoip\"] add_field => {\"mutated\" => \"true\" } } } output { elasticsearch { data_stream => false } }"
           }
       ]}
 
@@ -137,7 +137,7 @@ describe "Test Dead Letter Queue" do
                   if ([geoip]) { mutate { remove_field => [\"geoip\"] add_field => { \"mutated\" => \"true\" } } }
                   else{ mutate { add_field => { \"geoip\" => \"somewhere\" } } }
                 }
-                output { elasticsearch {} }"
+                output { elasticsearch { data_stream => false } }"
         }
       ]}
 

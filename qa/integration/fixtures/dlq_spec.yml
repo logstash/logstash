@@ -33,6 +33,8 @@ config:
     }
   }
   output {
-    elasticsearch {}
+    elasticsearch {
+      data_stream => false
+    }
   }
 teardown_script:

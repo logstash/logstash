@@ -163,7 +163,11 @@ guaranteed, but you save the processing cost of preserving order.
 | `false`
 
 | `config.support_escapes`
-| When set to `true`, quoted strings will process the following escape sequences: `\n` becomes a literal newline (ASCII 10). `\r` becomes a literal carriage return (ASCII 13). `\t` becomes a literal tab (ASCII 9). `\\` becomes a literal backslash `\`. `\"` becomes a literal double quotation mark. `\'` becomes a literal quotation mark.
+| The escape sequences in strings are not processed by default (`disabled`/`false`).
+
+  When set to `minimal` (or `true`), quoted strings will process the following escape sequences: `\n` becomes a literal newline (ASCII 10). `\r` becomes a literal carriage return (ASCII 13). `\t` becomes a literal tab (ASCII 9). `\\` becomes a literal backslash `\`. `\"` becomes a literal double quotation mark. `\'` becomes a literal quotation mark.
+
+  When set to `extended`, quoted strings will process everything in `minimal`, plus `\0` becomes a literal NULL (ASCII 0), `\xHH` becomes the corresponding hexadecimal codepoint (`\0x24` -> `$` ), and `\uHHHH` or `\uHHHHHHHH` become the corresponding unicode codepoint (`\u267B` -> &#x267B; ; `\u0001F49E` -> &#128158;).
 | `false`
 
 | `modules`

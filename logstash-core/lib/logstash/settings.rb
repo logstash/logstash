@@ -222,110 +222,109 @@ module LogStash
     end
   end
 
+
   class Setting
-    include LogStash::Util::Loggable
-
-    attr_reader :name, :default
-
-    def initialize(name, klass, default=nil, strict=true, &validator_proc)
-      @name = name
-      unless klass.is_a?(Class)
-        raise ArgumentError.new("Setting \"#{@name}\" must be initialized with a class (received #{klass})")
-      end
-      @klass = klass
-      @validator_proc = validator_proc
-      @value = nil
-      @value_is_set = false
-      @strict = strict
-
-      validate(default) if @strict
-      @default = default
-    end
-
-    def value
-      @value_is_set ? @value : default
-    end
-
-    def set?
-      @value_is_set
-    end
-
-    def strict?
-      @strict
-    end
-
-    def set(value)
-      validate(value) if @strict
-      @value = value
-      @value_is_set = true
-      @value
-    end
-
-    def reset
-      @value = nil
-      @value_is_set = false
-    end
-
-    def to_hash
-      {
-        "name" => @name,
-        "klass" => @klass,
-        "value" => @value,
-        "value_is_set" => @value_is_set,
-        "default" => @default,
-        # Proc#== will only return true if it's the same obj
-        # so no there's no point in comparing it
-        # also thereś no use case atm to return the proc
-        # so let's not expose it
-        #"validator_proc" => @validator_proc
-      }
-    end
-
-    def ==(other)
-      self.to_hash == other.to_hash
-    end
-
-    def validate_value
-      validate(value)
-    end
-
-    protected
-    def validate(input)
-      if !input.is_a?(@klass)
-        raise ArgumentError.new("Setting \"#{@name}\" must be a #{@klass}. Received: #{input} (#{input.class})")
-      end
-
-      if @validator_proc && !@validator_proc.call(input)
-        raise ArgumentError.new("Failed to validate setting \"#{@name}\" with value: #{input}")
-      end
-    end
+#     include LogStash::Util::Loggable
+#
+#     attr_reader :name, :default
+#
+#     def initialize(name, klass, default=nil, strict=true, &validator_proc)
+#       @name = name
+#       unless klass.is_a?(Class)
+#         raise ArgumentError.new("Setting \"#{@name}\" must be initialized with a class (received #{klass})")
+#       end
+#       @klass = klass
+#       @validator_proc = validator_proc
+#       @value = nil
+#       @value_is_set = false
+#       @strict = strict
+#
+#       validate(default) if @strict
+#       @default = default
+#     end
+#
+#     def value
+#       @value_is_set ? @value : default
+#     end
+#
+#     def set?
+#       @value_is_set
+#     end
+#
+#     def strict?
+#       @strict
+#     end
+#
+#     def set(value)
+#       validate(value) if @strict
+#       @value = value
+#       @value_is_set = true
+#       @value
+#     end
+#
+#     def reset
+#       @value = nil
+#       @value_is_set = false
+#     end
+#
+#     def to_hash
+#       {
+#         "name" => @name,
+#         "klass" => @klass,
+#         "value" => @value,
+#         "value_is_set" => @value_is_set,
+#         "default" => @default,
+#         # Proc#== will only return true if it's the same obj
+#         # so no there's no point in comparing it
+#         # also thereś no use case atm to return the proc
+#         # so let's not expose it
+#         #"validator_proc" => @validator_proc
+#       }
+#     end
+#
+#     def ==(other)
+#       self.to_hash == other.to_hash
+#     end
+#
+#     def validate_value
+#       validate(value)
+#     end
+#
+#     protected
+#     def validate(input)
+#       if !input.is_a?(@klass)
+#         raise ArgumentError.new("Setting \"#{@name}\" must be a #{@klass}. Received: #{input} (#{input.class})")
+#       end
+#
+#       if @validator_proc && !@validator_proc.call(input)
+#         raise ArgumentError.new("Failed to validate setting \"#{@name}\" with value: #{input}")
+#       end
+#     end
 
     class Coercible < Setting
       def initialize(name, klass, default=nil, strict=true, &validator_proc)
-        @name = name
+        # this call is needed to instantiate the Java Setting in parent SettingExt
+        coercible_init(name, klass, default, strict, &validator_proc)
         unless klass.is_a?(Class)
-          raise ArgumentError.new("Setting \"#{@name}\" must be initialized with a class (received #{klass})")
+          raise ArgumentError.new("Setting \"#{name}\" must be initialized with a class (received #{klass})")
         end
-        @klass = klass
-        @validator_proc = validator_proc
-        @value = nil
-        @value_is_set = false
 
         if strict
           coerced_default = coerce(default)
           validate(coerced_default)
-          @default = coerced_default
+          new_default = coerced_default
         else
-          @default = default
+          new_default = default
         end
+        set_default(new_default)
       end
 
       def set(value)
         coerced_value = coerce(value)
         validate(coerced_value)
-        @value = coerce(coerced_value)
-        @value_is_set = true
-        @value
+        new_value = coerce(coerced_value)
+        assign_value(new_value)
+        new_value
       end
 
       def coerce(value)
@@ -461,6 +460,7 @@ module LogStash
       end
     end
 
+#     java_import org.logstash.settings.StringSetting
     class String < Setting
       def initialize(name, default=nil, strict=true, possible_strings=[])
         @possible_strings = possible_strings
@@ -620,16 +620,16 @@ module LogStash
 
       protected
       def validate(input)
-        if !input.is_a?(@klass)
-          raise ArgumentError.new("Setting \"#{@name}\" must be a #{@klass}. Received: #{input} (#{input.class})")
+        if !input.is_a?(klass)
+          raise ArgumentError.new("Setting \"#{name}\" must be a #{klass}. Received: #{input} (#{input.class})")
         end
 
         unless input.all? {|el| el.kind_of?(@element_class) }
-          raise ArgumentError.new("Values of setting \"#{@name}\" must be #{@element_class}. Received: #{input.map(&:class)}")
+          raise ArgumentError.new("Values of setting \"#{name}\" must be #{@element_class}. Received: #{input.map(&:class)}")
         end
 
         if @validator_proc && !@validator_proc.call(input)
-          raise ArgumentError.new("Failed to validate setting \"#{@name}\" with value: #{input}")
+          raise ArgumentError.new("Failed to validate setting \"#{name}\" with value: #{input}")
         end
       end
     end
@@ -660,16 +660,16 @@ module LogStash
       end
 
       def set(value)
-        @value = coerce(value)
-        @value_is_set = true
-        @value
+        coerced_value = coerce(value)
+        assign_value(coerced_value)
+        coerced_value
       end
 
       def coerce(value)
-        if value.is_a?(@klass)
+        if value.is_a?(klass)
           return value
         end
-        @klass.new(value)
+        klass.new(value)
       end
 
       protected

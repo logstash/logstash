@@ -73,7 +73,7 @@ module LogStash
       # in the context of Bundler.setup it looks like this is useless here because Gemfile path can only be specified using
       # the ENV, see https://github.com/bundler/bundler/blob/v1.8.3/lib/bundler/shared_helpers.rb#L103
       ::Bundler.settings.set_local(:gemfile, Environment::GEMFILE_PATH)
-
+      ::Bundler.settings.set_local(:frozen, true)
       ::Bundler.reset!
       ::Bundler.setup
     end
@@ -91,7 +91,7 @@ module LogStash
     # @option options [Array] :without  Exclude gems that are part of the specified named group (default: [:development])
     # @return [String, Exception] the installation captured output and any raised exception or nil if none
     def invoke!(options = {})
-      options = {:max_tries => 10, :clean => false, :install => false, :update => false, :local => false,
+      options = {:silence_root_warning => false, :max_tries => 10, :clean => false, :install => false, :update => false, :local => false,
                  :jobs => 12, :all => false, :package => false, :without => [:development]}.merge(options)
       options[:without] = Array(options[:without])
       options[:update] = Array(options[:update]) if options[:update]
@@ -128,6 +128,7 @@ module LogStash
       ::Bundler.settings.set_local(:gemfile, LogStash::Environment::GEMFILE_PATH)
       ::Bundler.settings.set_local(:without, options[:without])
       ::Bundler.settings.set_local(:force, options[:force])
+      ENV["BUNDLE_SILENCE_ROOT_WARNING"] = options[:silence_root_warning].to_s
 
       if !debug?
         # Will deal with transient network errors
@@ -176,6 +177,16 @@ module LogStash
       ::Bundler::CLI.start(bundler_arguments(options))
     end
 
+    def specific_platform
+      ::Gem.platforms.find {|plat| plat.is_a?(::Gem::Platform) && plat.os=='java' && !plat.cpu.nil?}
+    end
+
+    def genericize_platform
+      output = LogStash::Bundler.invoke!({:add_platform => 'java', :silence_root_warning => true})
+      remove_platform_options = {:remove_platform => specific_platform.to_s, :silence_root_warning => true} unless specific_platform.nil?
+      output << LogStash::Bundler.invoke!(remove_platform_options) unless remove_platform_options.nil?
+    end
+
     def debug?
       ENV["DEBUG"]
     end
@@ -202,6 +213,14 @@ module LogStash
       elsif options[:package]
         arguments << "package"
         arguments << "--all" if options[:all]
+      elsif options[:add_platform]
+        arguments << "lock"
+        arguments << "--add_platform"
+        arguments << options[:add_platform]
+      elsif options[:remove_platform]
+        arguments << "lock"
+        arguments << "--remove_platform"
+        arguments << options[:remove_platform]
       end
 
       arguments << "--verbose" if options[:verbose]

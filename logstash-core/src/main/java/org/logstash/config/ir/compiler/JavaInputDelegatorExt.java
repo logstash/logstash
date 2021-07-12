@@ -24,6 +24,7 @@ import co.elastic.logstash.api.Input;
 import org.jruby.Ruby;
 import org.jruby.RubyClass;
 import org.jruby.RubyObject;
+import org.jruby.RubyString;
 import org.jruby.anno.JRubyClass;
 import org.jruby.anno.JRubyMethod;
 import org.jruby.runtime.ThreadContext;
@@ -49,6 +50,8 @@ public class JavaInputDelegatorExt extends RubyObject {
 
     private Input input;
 
+    private transient RubyString idString;
+
     private DecoratingQueueWriter decoratingQueueWriter;
 
     public JavaInputDelegatorExt(Ruby runtime, RubyClass metaClass) {
@@ -58,11 +61,12 @@ public class JavaInputDelegatorExt extends RubyObject {
     public static JavaInputDelegatorExt create(final JavaBasePipelineExt pipeline,
                                                final AbstractNamespacedMetricExt metric, final Input input,
                                                final Map<String, Object> pluginArgs) {
+        final ThreadContext context = RubyUtil.RUBY.getCurrentContext();
         final JavaInputDelegatorExt instance =
                 new JavaInputDelegatorExt(RubyUtil.RUBY, RubyUtil.JAVA_INPUT_DELEGATOR_CLASS);
-        AbstractNamespacedMetricExt scopedMetric = metric.namespace(RubyUtil.RUBY.getCurrentContext(), RubyUtil.RUBY.newSymbol(input.getId()));
-        scopedMetric.gauge(RubyUtil.RUBY.getCurrentContext(), MetricKeys.NAME_KEY, RubyUtil.RUBY.newString(input.getName()));
-        instance.setMetric(RubyUtil.RUBY.getCurrentContext(), scopedMetric);
+        AbstractNamespacedMetricExt scopedMetric = metric.namespace(context, RubyUtil.RUBY.newSymbol(input.getId()));
+        scopedMetric.gauge(context, MetricKeys.NAME_KEY, RubyUtil.RUBY.newString(input.getName()));
+        instance.setMetric(context, scopedMetric);
         instance.input = input;
         instance.pipeline = pipeline;
         instance.initializeQueueWriter(pluginArgs);
@@ -79,12 +83,13 @@ public class JavaInputDelegatorExt extends RubyObject {
         } else {
             queueWriter = qw;
         }
+        final String pipelineId = pipeline.pipelineId().asJavaString();
         Thread t = new Thread(() -> {
-            org.apache.logging.log4j.ThreadContext.put("pipeline.id", pipeline.pipelineId().toString());
-            org.apache.logging.log4j.ThreadContext.put("plugin.id", this.getId(context).toString());
+            org.apache.logging.log4j.ThreadContext.put("pipeline.id", pipelineId);
+            org.apache.logging.log4j.ThreadContext.put("plugin.id", this.getId());
             input.start(queueWriter::push);
         });
-        t.setName(pipeline.pipelineId().asJavaString() + "_" + input.getName() + "_" + input.getId());
+        t.setName(pipelineId + "_" + input.getName() + "_" + input.getId());
         t.start();
         return RubyUtil.toRubyObject(t);
     }
@@ -105,9 +110,17 @@ public class JavaInputDelegatorExt extends RubyObject {
         return context.getRuntime().newString(input.getName());
     }
 
+    public String getId() {
+        return input.getId();
+    }
+
     @JRubyMethod(name = "id")
-    public IRubyObject getId(final ThreadContext context) {
-        return context.getRuntime().newString(input.getId());
+    public IRubyObject id(final ThreadContext context) {
+        IRubyObject idString = this.idString;
+        if (idString == null) {
+            idString = this.idString = (RubyString) context.runtime.newString(input.getId()).freeze(context);
+        }
+        return idString;
     }
 
     @JRubyMethod(name = "threadable")

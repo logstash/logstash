@@ -26,7 +26,6 @@ import org.jruby.RubyArray;
 import org.jruby.RubyClass;
 import org.jruby.RubyHash;
 import org.jruby.RubyObject;
-import org.jruby.RubyString;
 import org.jruby.anno.JRubyClass;
 import org.jruby.anno.JRubyMethod;
 import org.jruby.internal.runtime.methods.DynamicMethod;
@@ -34,8 +33,6 @@ import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.builtin.IRubyObject;
 import org.logstash.instrument.metrics.AbstractNamespacedMetricExt;
 import org.logstash.instrument.metrics.counter.LongCounter;
-
-import java.util.UUID;
 
 import static org.logstash.RubyUtil.RUBY;
 
@@ -56,12 +53,11 @@ public final class FilterDelegatorExt extends AbstractFilterDelegatorExt {
 
     @JRubyMethod(name="initialize")
     public IRubyObject initialize(final ThreadContext context, final IRubyObject filter, final IRubyObject id) {
-        this.id = (RubyString) id;
         this.filter = filter;
         filterClass = filter.getSingletonClass().getRealClass();
         filterMethod = filterClass.searchMethod(FILTER_METHOD_NAME);
         final AbstractNamespacedMetricExt namespacedMetric = (AbstractNamespacedMetricExt) filter.callMethod(context, "metric");
-        initMetrics(this.id.asJavaString(), namespacedMetric);
+        initMetrics(id.asJavaString(), namespacedMetric);
         flushes = filter.respondsTo("flush");
         return this;
     }
@@ -75,7 +71,7 @@ public final class FilterDelegatorExt extends AbstractFilterDelegatorExt {
         filterMethod = filter.getMetaClass().searchMethod(FILTER_METHOD_NAME);
         flushes = filter.respondsTo("flush");
         filterClass = configNameDouble.getType();
-        id = RUBY.newString(UUID.randomUUID().toString());
+        this.setId(filter.getRuntime().getCurrentContext(), RubyIntegration.generatePluginId());
         return this;
     }
 
@@ -83,9 +79,8 @@ public final class FilterDelegatorExt extends AbstractFilterDelegatorExt {
         super(runtime, metaClass);
     }
 
-    @Override
-    protected void doRegister(final ThreadContext context) {
-        filter.callMethod(context, "register");
+    protected IRubyObject registerImpl(final ThreadContext context) {
+        return filter.callMethod(context, "register");
     }
 
     @Override
@@ -119,11 +114,21 @@ public final class FilterDelegatorExt extends AbstractFilterDelegatorExt {
     }
 
     @Override
+    public IRubyObject doRegister(final ThreadContext context) {
+        try {
+            org.apache.logging.log4j.ThreadContext.put("plugin.id", getId());
+            return registerImpl(context);
+        } finally {
+            org.apache.logging.log4j.ThreadContext.remove("plugin.id");
+        }
+    }
+
+    @Override
     @SuppressWarnings({"rawtypes"})
     protected RubyArray doMultiFilter(final RubyArray batch) {
-        final IRubyObject pluginId = this.getId();
-        org.apache.logging.log4j.ThreadContext.put("plugin.id", pluginId.toString());
         try {
+            org.apache.logging.log4j.ThreadContext.put("plugin.id", getId());
+
             return (RubyArray) filterMethod.call(
                     RUBY.getCurrentContext(), filter, filterClass, FILTER_METHOD_NAME, batch);
         } finally {
@@ -133,7 +138,22 @@ public final class FilterDelegatorExt extends AbstractFilterDelegatorExt {
 
     @Override
     protected IRubyObject doFlush(final ThreadContext context, final RubyHash options) {
-        return filter.callMethod(context, "flush", options);
+        try {
+            org.apache.logging.log4j.ThreadContext.put("plugin.id", getId());
+            return filter.callMethod(context, "flush", options);
+        } finally {
+            org.apache.logging.log4j.ThreadContext.remove("plugin.id");
+        }
+    }
+
+    @Override
+    public IRubyObject doClose(final ThreadContext context) {
+        try {
+            org.apache.logging.log4j.ThreadContext.put("plugin.id", getId());
+            return doCloseImpl(context);
+        } finally {
+            org.apache.logging.log4j.ThreadContext.remove("plugin.id");
+        }
     }
 
     @Override

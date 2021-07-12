@@ -97,8 +97,7 @@ OutputDelegatorExt extends AbstractOutputDelegatorExt {
     @Override
     protected void doOutput(final Collection<JrubyEventExtLibrary.RubyEvent> batch) {
         try {
-            final IRubyObject pluginId = this.getId();
-            org.apache.logging.log4j.ThreadContext.put("plugin.id", pluginId.toString());
+            org.apache.logging.log4j.ThreadContext.put("plugin.id", getId());
             strategy.multiReceive(RUBY.getCurrentContext(), (IRubyObject) batch);
         } catch (final InterruptedException ex) {
             throw new IllegalStateException(ex);
@@ -109,12 +108,22 @@ OutputDelegatorExt extends AbstractOutputDelegatorExt {
 
     @Override
     protected void close(final ThreadContext context) {
-        strategy.doClose(context);
+        try {
+            org.apache.logging.log4j.ThreadContext.put("plugin.id", getId());
+            strategy.doClose(context);
+        } finally {
+            org.apache.logging.log4j.ThreadContext.remove("plugin.id");
+        }
     }
 
     @Override
     protected void doRegister(final ThreadContext context) {
-        strategy.register(context);
+        try {
+            org.apache.logging.log4j.ThreadContext.put("plugin.id", getId());
+            strategy.register(context);
+        } finally {
+            org.apache.logging.log4j.ThreadContext.remove("plugin.id");
+        }
     }
 
     @Override

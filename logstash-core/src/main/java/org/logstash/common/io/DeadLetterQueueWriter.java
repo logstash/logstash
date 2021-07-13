@@ -157,7 +157,7 @@ public final class DeadLetterQueueWriter implements Closeable {
         lock.lock();
         try {
             Timestamp entryTimestamp = Timestamp.now();
-            if (entryTimestamp.getTime().isBefore(lastEntryTimestamp.getTime())) {
+            if (entryTimestamp.getInstant().isBefore(lastEntryTimestamp.getInstant())) {
                 entryTimestamp = lastEntryTimestamp;
             }
             innerWriteEntry(entry);

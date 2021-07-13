@@ -40,6 +40,9 @@ import org.logstash.ObjectMappers;
 import org.logstash.RubyUtil;
 import org.logstash.Timestamp;
 
+import java.time.Instant;
+import java.time.ZoneOffset;
+
 public final class JrubyTimestampExtLibrary {
 
     @JRubyClass(name = "Timestamp", include = "Comparable")
@@ -78,7 +81,7 @@ public final class JrubyTimestampExtLibrary {
             if (time.isNil()) {
                 this.timestamp = new Timestamp();
             } else if (time instanceof RubyTime) {
-                this.timestamp = new Timestamp(((RubyTime) time).getDateTime());
+                this.timestamp = new Timestamp(((RubyTime) time).toInstant());
             } else if (time instanceof RubyString) {
                 try {
                     this.timestamp = new Timestamp(time.toString());
@@ -98,19 +101,24 @@ public final class JrubyTimestampExtLibrary {
         @JRubyMethod(name = "time")
         public RubyTime ruby_time(ThreadContext context)
         {
-            return RubyTime.newTime(context.runtime, this.timestamp.getTime());
+            final Instant instant = this.timestamp.getInstant();
+            final long epochSecond = instant.getEpochSecond();
+            final long extraNanos = instant.getNano();
+
+            final long epochNanos = (epochSecond * 1000000) + extraNanos;
+            return RubyTime.newTimeFromNanoseconds(context.runtime, epochNanos);
         }
 
         @JRubyMethod(name = "to_i")
         public IRubyObject ruby_to_i(ThreadContext context)
         {
-            return RubyFixnum.newFixnum(context.runtime, this.timestamp.getTime().getMillis() / 1000);
+            return RubyFixnum.newFixnum(context.runtime, this.timestamp.getInstant().getEpochSecond());
         }
 
         @JRubyMethod(name = "to_f")
         public IRubyObject ruby_to_f(ThreadContext context)
         {
-            return RubyFloat.newFloat(context.runtime, this.timestamp.getTime().getMillis() / 1000.0d);
+            return RubyFloat.newFloat(context.runtime, this.timestamp.getInstant().toEpochMilli() / 1000.0d);
         }
 
         @JRubyMethod(name = "to_s")
@@ -236,7 +244,7 @@ public final class JrubyTimestampExtLibrary {
         @JRubyMethod(name = "year")
         public IRubyObject ruby_year(ThreadContext context)
         {
-            return RubyFixnum.newFixnum(context.runtime, this.timestamp.getTime().getYear());
+            return RubyFixnum.newFixnum(context.runtime, this.timestamp.getInstant().atOffset(ZoneOffset.UTC).getYear());
         }
 
         @JRubyMethod(name = "<=>")

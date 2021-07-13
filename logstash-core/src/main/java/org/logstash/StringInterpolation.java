@@ -22,8 +22,10 @@ package org.logstash;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import org.joda.time.DateTimeZone;
-import org.joda.time.format.DateTimeFormat;
 
+import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 
@@ -72,13 +74,11 @@ public final class StringInterpolation {
             }
             if (template.regionMatches(open + 2, "+%s", 0, close - open - 2)) {
                 Timestamp t = event.getTimestamp();
-                builder.append(t == null ? "" : t.getTime().getMillis() / 1000L);
+                builder.append(t == null ? "" : t.getInstant().getEpochSecond());
             } else if (template.charAt(open + 2) == '+') {
                 Timestamp t = event.getTimestamp();
                 builder.append(t != null
-                        ? event.getTimestamp().getTime().toString(
-                                DateTimeFormat.forPattern(template.substring(open + 3, close))
-                                        .withZone(DateTimeZone.UTC))
+                        ? DateTimeFormatter.ofPattern(template.substring(open + 3, close)).withZone(ZoneOffset.UTC).format(t.getInstant())
                         : ""
                     );
             } else {

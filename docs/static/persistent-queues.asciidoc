@@ -79,7 +79,9 @@ For more details specific behaviors of queue writes and acknowledgement, see
 ==== Configuring Persistent Queues
 
 To configure persistent queues, you can specify the following options in the
-Logstash <<logstash-settings-file,settings file>>:
+Logstash <<logstash-settings-file,settings file>>.
+The settings will be applied to all pipelines and values are per pipeline.
+If you want to define them for a specific pipeline, use <<multiple-pipelines, `pipelines.yml`>>.
 
 * `queue.type`: Specify `persisted` to enable persistent queues. By default, persistent queues are disabled (default: `queue.type: memory`).
 * `path.queue`: The directory path where the data files will be stored. By default, the files are stored in `path.data/queue`. 

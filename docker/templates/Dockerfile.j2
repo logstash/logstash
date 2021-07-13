@@ -94,7 +94,9 @@ ADD config/logstash-full.yml config/logstash.yml
 {% endif -%}
 ADD config/log4j2.properties config/
 ADD pipeline/default.conf pipeline/logstash.conf
-RUN chown --recursive logstash:root config/ pipeline/
+# set permissions and comment out Xmx and Xms options to use container limits
+RUN chown --recursive logstash:root config/ pipeline/  && \
+  sed -i -e 's/^-Xm\([xs]\)/#-Xm\1/' config/jvm.options
 
 # Ensure Logstash gets the correct locale by default.
 ENV LANG={{ locale }} LC_ALL={{ locale }}
